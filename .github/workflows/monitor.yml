@@ -1,0 +1,44 @@
+name: HUST CTSV ticket watcher
+
+on:
+  schedule:
+    # Every 5 minutes (UTC), offset from minute 00 to reduce congestion.
+    - cron: '3-59/5 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: hust-ctsv-monitor
+  cancel-in-progress: false
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install packages
+        run: |
+          pip install -r requirements.txt
+          python -m playwright install --with-deps chromium
+      - name: Monitor events and send push if needed
+        env:
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          HUST_AUTH_B64: ${{ secrets.HUST_AUTH_B64 }}
+        run: python check_events.py
+      - name: Persist only content hash and bot status
+        run: |
+          if [ -n "$(git status --porcelain -- state/last.json)" ]; then
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git add state/last.json
+            git commit -m 'Update CTSV monitor fingerprint [skip ci]'
+            git push
+          fi
