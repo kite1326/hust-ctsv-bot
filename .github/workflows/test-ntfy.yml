@@ -1,0 +1,23 @@
+
+name: Test ntfy notification
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send test notification
+        env:
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+        run: |
+          if [ -z "$NTFY_TOPIC" ]; then
+            echo "Missing NTFY_TOPIC secret"
+            exit 1
+          fi
+
+          curl --fail-with-body -sS -X POST \
+            "https://ntfy.sh/$NTFY_TOPIC" \
+            -H "Title: HUST CTSV Bot" \
+            -d "TEST: GitHub Actions da gui thong bao thanh cong!"
